@@ -6,8 +6,10 @@ import torch
 from scipy.sparse import linalg
 from torch.autograd import Variable
 
+
 def normal_std(x):
-    return x.std() * np.sqrt((len(x) - 1.)/(len(x)))
+    return x.std() * np.sqrt((len(x) - 1.) / (len(x)))
+
 
 class DataLoaderS(object):
     # train and valid is the ratio of training set and validation set. test = 1 - train - valid
@@ -18,9 +20,10 @@ class DataLoaderS(object):
         self.rawdat = np.loadtxt(fin, delimiter=',')
         self.dat = np.zeros(self.rawdat.shape)
         self.n, self.m = self.dat.shape
-        self.normalize = 2
+        self.normalize = 2  # 用单行中节点最大值进行归一化，影响scale
         self.scale = np.ones(self.m)
         self._normalized(normalize)
+        # 传入的train, valid是0.6, 0.2，用于划分数据行数
         self._split(int(train * self.n), int((train + valid) * self.n), self.n)
 
         self.scale = torch.from_numpy(self.scale).float()
@@ -50,21 +53,27 @@ class DataLoaderS(object):
                 self.dat[:, i] = self.rawdat[:, i] / np.max(np.abs(self.rawdat[:, i]))
 
     def _split(self, train, valid, test):
-
-        train_set = range(self.P + self.h - 1, train)
-        valid_set = range(train, valid)
-        test_set = range(valid, self.n)
+        # 传入train的终止数据坐标和valid的终止数据坐标
+        # P代表数据片大小，加上horizon-1表示在这个坐标之前是第一次用做batchify的window+horizon个数据
+        train_set = range(self.P + self.h - 1, train)   # 计算训练集的数据片范围
+        valid_set = range(train, valid)  # 验证集的数据片范围
+        test_set = range(valid, self.n)  # 测试集的数据片范围
         self.train = self._batchify(train_set, self.h)
         self.valid = self._batchify(valid_set, self.h)
         self.test = self._batchify(test_set, self.h)
 
     def _batchify(self, idx_set, horizon):
+        # idx_set是连续的数据行索引集
         n = len(idx_set)
+        # 初始化输入和标签的shape
         X = torch.zeros((n, self.P, self.m))
         Y = torch.zeros((n, self.m))
         for i in range(n):
+            # idx_set的每一个都是window+horizon数据片的结束坐标
+            # 这里end就是horizon部分的第一个坐标
             end = idx_set[i] - self.h + 1
             start = end - self.P
+            # X的一个数据片大小为window+horizon，与最后一个时刻的标签Y对应
             X[i, :, :] = torch.from_numpy(self.dat[start:end, :])
             Y[i, :] = torch.from_numpy(self.dat[idx_set[i], :])
         return [X, Y]
@@ -85,6 +94,7 @@ class DataLoaderS(object):
             Y = Y.to(self.device)
             yield Variable(X), Variable(Y)
             start_idx += batch_size
+
 
 class DataLoaderM(object):
     def __init__(self, xs, ys, batch_size, pad_with_last_sample=True):
@@ -115,6 +125,7 @@ class DataLoaderM(object):
 
     def get_iterator(self):
         self.current_ind = 0
+
         def _wrapper():
             while self.current_ind < self.num_batch:
                 start_ind = self.batch_size * self.current_ind
@@ -126,15 +137,19 @@ class DataLoaderM(object):
 
         return _wrapper()
 
+
 class StandardScaler():
     """
     Standard the input
     """
+
     def __init__(self, mean, std):
         self.mean = mean
         self.std = std
+
     def transform(self, data):
         return (data - self.mean) / self.std
+
     def inverse_transform(self, data):
         return (data * self.std) + self.mean
 
@@ -148,14 +163,16 @@ def sym_adj(adj):
     d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
     return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).astype(np.float32).todense()
 
+
 def asym_adj(adj):
     """Asymmetrically normalize adjacency matrix."""
     adj = sp.coo_matrix(adj)
     rowsum = np.array(adj.sum(1)).flatten()
     d_inv = np.power(rowsum, -1).flatten()
     d_inv[np.isinf(d_inv)] = 0.
-    d_mat= sp.diags(d_inv)
+    d_mat = sp.diags(d_inv)
     return d_mat.dot(adj).astype(np.float32).todense()
+
 
 def calculate_normalized_laplacian(adj):
     """
@@ -171,6 +188,7 @@ def calculate_normalized_laplacian(adj):
     d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
     normalized_laplacian = sp.eye(adj.shape[0]) - adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
     return normalized_laplacian
+
 
 def calculate_scaled_laplacian(adj_mx, lambda_max=2, undirected=True):
     if undirected:
@@ -198,12 +216,13 @@ def load_pickle(pickle_file):
         raise
     return pickle_data
 
+
 def load_adj(pkl_filename):
     sensor_ids, sensor_id_to_ind, adj = load_pickle(pkl_filename)
     return adj
 
 
-def load_dataset(dataset_dir, batch_size, valid_batch_size= None, test_batch_size=None):
+def load_dataset(dataset_dir, batch_size, valid_batch_size=None, test_batch_size=None):
     data = {}
     for category in ['train', 'val', 'test']:
         cat_data = np.load(os.path.join(dataset_dir, category + '.npz'))
@@ -221,19 +240,19 @@ def load_dataset(dataset_dir, batch_size, valid_batch_size= None, test_batch_siz
     return data
 
 
-
 def masked_mse(preds, labels, null_val=np.nan):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
-        mask = (labels!=null_val)
+        mask = (labels != null_val)
     mask = mask.float()
     mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    loss = (preds-labels)**2
+    loss = (preds - labels) ** 2
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
     return torch.mean(loss)
+
 
 def masked_rmse(preds, labels, null_val=np.nan):
     return torch.sqrt(masked_mse(preds=preds, labels=labels, null_val=null_val))
@@ -243,34 +262,35 @@ def masked_mae(preds, labels, null_val=np.nan):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
-        mask = (labels!=null_val)
+        mask = (labels != null_val)
     mask = mask.float()
-    mask /=  torch.mean((mask))
+    mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    loss = torch.abs(preds-labels)
+    loss = torch.abs(preds - labels)
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
     return torch.mean(loss)
+
 
 def masked_mape(preds, labels, null_val=np.nan):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
-        mask = (labels!=null_val)
+        mask = (labels != null_val)
     mask = mask.float()
-    mask /=  torch.mean((mask))
+    mask /= torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    loss = torch.abs(preds-labels)/labels
+    loss = torch.abs(preds - labels) / labels
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
     return torch.mean(loss)
 
 
 def metric(pred, real):
-    mae = masked_mae(pred,real,0.0).item()
-    mape = masked_mape(pred,real,0.0).item()
-    rmse = masked_rmse(pred,real,0.0).item()
-    return mae,mape,rmse
+    mae = masked_mae(pred, real, 0.0).item()
+    mape = masked_mape(pred, real, 0.0).item()
+    rmse = masked_rmse(pred, real, 0.0).item()
+    return mae, mape, rmse
 
 
 def load_node_feature(path):
@@ -282,15 +302,11 @@ def load_node_feature(path):
         e = [float(t) for t in li[1:]]
         x.append(e)
     x = np.array(x)
-    mean = np.mean(x,axis=0)
-    std = np.std(x,axis=0)
-    z = torch.tensor((x-mean)/std,dtype=torch.float)
+    mean = np.mean(x, axis=0)
+    std = np.std(x, axis=0)
+    z = torch.tensor((x - mean) / std, dtype=torch.float)
     return z
 
 
 def normal_std(x):
     return x.std() * np.sqrt((len(x) - 1.) / (len(x)))
-
-
-
-            
