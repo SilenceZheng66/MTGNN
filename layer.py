@@ -11,6 +11,7 @@ class nconv(nn.Module):
         super(nconv, self).__init__()
 
     def forward(self, x, A):
+        # 将节点特征与邻接矩阵卷积，产生新的节点特征
         x = torch.einsum('ncwl,vw->ncvl', (x, A))
         return x.contiguous()
 
@@ -57,24 +58,24 @@ class prop(nn.Module):
 class mixprop(nn.Module):
     def __init__(self, c_in, c_out, gdep, dropout, alpha):
         super(mixprop, self).__init__()
-        self.nconv = nconv()
-        self.mlp = linear((gdep + 1) * c_in, c_out)
-        self.gdep = gdep
-        self.dropout = dropout
-        self.alpha = alpha
+        self.nconv = nconv()  # 创建一个节点卷积层
+        self.mlp = linear((gdep + 1) * c_in, c_out)  # 创建一个多层感知机（MLP）模型
+        self.gdep = gdep  # 图卷积的深度
+        self.dropout = dropout  # 随机失活率
+        self.alpha = alpha  # 混合参数
 
     def forward(self, x, adj):
-        adj = adj + torch.eye(adj.size(0)).to(x.device)
-        d = adj.sum(1)
-        h = x
-        out = [h]
-        a = adj / d.view(-1, 1)
+        adj = adj + torch.eye(adj.size(0)).to(x.device)  # 将自连接加到邻接矩阵上
+        d = adj.sum(1)  # 计算每个节点的度
+        h = x  # 初始化节点特征
+        out = [h]  # 存储不同深度的节点特征
+        a = adj / d.view(-1, 1)  # 归一化邻接矩阵
         for i in range(self.gdep):
-            h = self.alpha * x + (1 - self.alpha) * self.nconv(h, a)
-            out.append(h)
-        ho = torch.cat(out, dim=1)
-        ho = self.mlp(ho)
-        return ho
+            h = self.alpha * x + (1 - self.alpha) * self.nconv(h, a)  # 计算新的节点特征
+            out.append(h)  # 将新的节点特征添加到列表中
+        ho = torch.cat(out, dim=1)  # 沿通道维度拼接不同深度的节点特征
+        ho = self.mlp(ho)  # 应用多层感知机
+        return ho  # 返回最终的输出
 
 
 class dy_mixprop(nn.Module):
