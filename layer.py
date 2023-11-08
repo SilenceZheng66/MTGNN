@@ -66,10 +66,11 @@ class mixprop(nn.Module):
 
     def forward(self, x, adj):
         adj = adj + torch.eye(adj.size(0)).to(x.device)  # 将自连接加到邻接矩阵上
-        d = adj.sum(1)  # 计算每个节点的度
+        d = adj.sum(1)  # 纵向求和，计算节点的度，注意是浮点，并不是整数
         h = x  # 初始化节点特征
         out = [h]  # 存储不同深度的节点特征
         a = adj / d.view(-1, 1)  # 归一化邻接矩阵
+        # 按图卷积的深度做了几轮运算
         for i in range(self.gdep):
             h = self.alpha * x + (1 - self.alpha) * self.nconv(h, a)  # 计算新的节点特征
             out.append(h)  # 将新的节点特征添加到列表中
@@ -173,6 +174,7 @@ class graph_constructor(nn.Module):
 
     def forward(self, idx):
         if self.static_feat is None:
+            # 节点嵌入到高维空间
             nodevec1 = self.emb1(idx)
             nodevec2 = self.emb2(idx)
         else:
@@ -181,7 +183,7 @@ class graph_constructor(nn.Module):
 
         nodevec1 = torch.tanh(self.alpha * self.lin1(nodevec1))
         nodevec2 = torch.tanh(self.alpha * self.lin2(nodevec2))
-
+        # 这一步属实没看懂，强行构造邻接矩阵？
         a = torch.mm(nodevec1, nodevec2.transpose(1, 0)) - torch.mm(nodevec2, nodevec1.transpose(1, 0))
         adj = F.relu(torch.tanh(self.alpha * a))
         mask = torch.zeros(idx.size(0), idx.size(0)).to(self.device)
@@ -189,6 +191,7 @@ class graph_constructor(nn.Module):
         s1, t1 = (adj + torch.rand_like(adj) * 0.01).topk(self.k, 1)
         mask.scatter_(1, t1, s1.fill_(1))
         adj = adj * mask
+        # 好像是在硬构造边
         return adj
 
     def fullA(self, idx):

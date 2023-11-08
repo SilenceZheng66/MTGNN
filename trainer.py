@@ -2,6 +2,8 @@ import torch.optim as optim
 import math
 from net import *
 import util
+
+
 class Trainer():
     def __init__(self, model, lrate, wdecay, clip, step_size, seq_out_len, scaler, device, cl=True):
         self.scaler = scaler
@@ -20,11 +22,11 @@ class Trainer():
         self.model.train()
         self.optimizer.zero_grad()
         output = self.model(input, idx=idx)
-        output = output.transpose(1,3)
-        real = torch.unsqueeze(real_val,dim=1)
+        output = output.transpose(1, 3)
+        real = torch.unsqueeze(real_val, dim=1)
         predict = self.scaler.inverse_transform(output)
-        if self.iter%self.step==0 and self.task_level<=self.seq_out_len:
-            self.task_level +=1
+        if self.iter % self.step == 0 and self.task_level <= self.seq_out_len:
+            self.task_level += 1
         if self.cl:
             loss = self.loss(predict[:, :, :, :self.task_level], real[:, :, :, :self.task_level], 0.0)
         else:
@@ -37,22 +39,21 @@ class Trainer():
 
         self.optimizer.step()
         # mae = util.masked_mae(predict,real,0.0).item()
-        mape = util.masked_mape(predict,real,0.0).item()
-        rmse = util.masked_rmse(predict,real,0.0).item()
+        mape = util.masked_mape(predict, real, 0.0).item()
+        rmse = util.masked_rmse(predict, real, 0.0).item()
         self.iter += 1
-        return loss.item(),mape,rmse
+        return loss.item(), mape, rmse
 
     def eval(self, input, real_val):
         self.model.eval()
         output = self.model(input)
-        output = output.transpose(1,3)
-        real = torch.unsqueeze(real_val,dim=1)
+        output = output.transpose(1, 3)
+        real = torch.unsqueeze(real_val, dim=1)
         predict = self.scaler.inverse_transform(output)
         loss = self.loss(predict, real, 0.0)
-        mape = util.masked_mape(predict,real,0.0).item()
-        rmse = util.masked_rmse(predict,real,0.0).item()
-        return loss.item(),mape,rmse
-
+        mape = util.masked_mape(predict, real, 0.0).item()
+        rmse = util.masked_rmse(predict, real, 0.0).item()
+        return loss.item(), mape, rmse
 
 
 class Optim(object):
@@ -100,7 +101,7 @@ class Optim(object):
         #     if shrinkage < 1:
         #         param.grad.data.mul_(shrinkage)
         self.optimizer.step()
-        return  grad_norm
+        return grad_norm
 
     # decay learning rate if val perf does not improve or we hit the start_decay_at limit
     def updateLearningRate(self, ppl, epoch):
@@ -112,7 +113,7 @@ class Optim(object):
         if self.start_decay:
             self.lr = self.lr * self.lr_decay
             print("Decaying learning rate to %g" % self.lr)
-        #only decay for one epoch
+        # only decay for one epoch
         self.start_decay = False
 
         self.last_ppl = ppl
