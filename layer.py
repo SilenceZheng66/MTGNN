@@ -69,6 +69,7 @@ class mixprop(nn.Module):
         d = adj.sum(1)  # 纵向求和，计算节点的度，注意是浮点，并不是整数
         h = x  # 初始化节点特征
         out = [h]  # 存储不同深度的节点特征
+        #  d.view(-1, 1)把d竖起来
         a = adj / d.view(-1, 1)  # 归一化邻接矩阵
         # 按图卷积的深度做了几轮运算
         for i in range(self.gdep):
@@ -156,6 +157,7 @@ class graph_constructor(nn.Module):
     def __init__(self, nnodes, k, dim, device, alpha=3, static_feat=None):
         super(graph_constructor, self).__init__()
         self.nnodes = nnodes
+        # lin1和lin2是可学习的参数
         if static_feat is not None:
             xd = static_feat.shape[1]
             self.lin1 = nn.Linear(xd, dim)
@@ -169,27 +171,35 @@ class graph_constructor(nn.Module):
         self.device = device
         self.k = k
         self.dim = dim
-        self.alpha = alpha
+        self.alpha = alpha  # 激活函数的饱和率
         self.static_feat = static_feat
 
     def forward(self, idx):
         if self.static_feat is None:
-            # 节点嵌入到高维空间
-            nodevec1 = self.emb1(idx)
-            nodevec2 = self.emb2(idx)
+            # 节点嵌入到高维空间，获得初始节点嵌入
+            # TODO：在节点嵌入加入更多信息，论文提到了
+            nodevec1 = self.emb1(idx)  # 源节点嵌入
+            nodevec2 = self.emb2(idx)  # 目标节点嵌入
         else:
             nodevec1 = self.static_feat[idx, :]
             nodevec2 = nodevec1
 
         nodevec1 = torch.tanh(self.alpha * self.lin1(nodevec1))
         nodevec2 = torch.tanh(self.alpha * self.lin2(nodevec2))
-        # 这一步属实没看懂，强行构造邻接矩阵？
+        # 计算邻接矩阵的非对称信息（认为节点变量间关系是单向的）
+        # a通过两者相减表示单向关系
         a = torch.mm(nodevec1, nodevec2.transpose(1, 0)) - torch.mm(nodevec2, nodevec1.transpose(1, 0))
+        # Relu激活，正则化邻接矩阵
         adj = F.relu(torch.tanh(self.alpha * a))
+        # 构造与邻接矩阵大小相同的 0 mask
         mask = torch.zeros(idx.size(0), idx.size(0)).to(self.device)
         mask.fill_(float('0'))
+        # + torch.rand_like(adj) * 0.01 是 [0,1]的均匀分布缩放0.01，不知道为什么加这个
+        # s1 是 最大值， t1 是 索引
         s1, t1 = (adj + torch.rand_like(adj) * 0.01).topk(self.k, 1)
+        # mask最终是adj上前k大元素置为1，其余置为0的矩阵
         mask.scatter_(1, t1, s1.fill_(1))
+        # 对应元素相乘，只保留前k大值
         adj = adj * mask
         # 好像是在硬构造边
         return adj

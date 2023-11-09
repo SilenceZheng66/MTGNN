@@ -113,6 +113,7 @@ class gtnet(nn.Module):
         if self.seq_length < self.receptive_field:
             input = nn.functional.pad(input, (self.receptive_field - self.seq_length, 0, 0, 0))
 
+        # 获取邻接矩阵，以参与图卷积运算
         if self.gcn_true:
             # 自适应邻接矩阵
             if self.buildA_true:
