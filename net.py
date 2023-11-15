@@ -48,7 +48,7 @@ class gtnet(nn.Module):
                 else:
                     rf_size_j = rf_size_i + j * (kernel_size - 1)
 
-                # 这俩怎么一样？👇
+                # TODO：这俩怎么一样？👇
                 self.filter_convs.append(
                     dilated_inception(residual_channels, conv_channels, dilation_factor=new_dilation))
                 self.gate_convs.append(
@@ -138,7 +138,8 @@ class gtnet(nn.Module):
             s = self.skip_convs[i](s)
             skip = s + skip
             if self.gcn_true:
-                x = self.gconv1[i](x, adp) + self.gconv2[i](x, adp.transpose(1, 0))  # TODO：有什么意义？
+                # gconv1处理inflow信息（来自邻居），gconv2处理outflow信息（向邻居传播）
+                x = self.gconv1[i](x, adp) + self.gconv2[i](x, adp.transpose(1, 0))
             else:
                 x = self.residual_convs[i](x)
             # 残差
