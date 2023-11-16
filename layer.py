@@ -80,11 +80,17 @@ class mixprop(nn.Module):
         # 信息传播层⬇️，按图卷积的深度做了几轮运算
         for i in range(self.gdep):
             # H(k)的计算公式
+            # self.alpha * x是初始节点保持因子，用于解决节点表征趋同
+            # 但加入节点保持因子会削弱一些节点信息
             h = self.alpha * x + (1 - self.alpha) * self.nconv(h, a)
             out.append(h)  # 每次计算结果都添加上
         # 在第二维（通道）拼接out数组为一个张量
         ho = torch.cat(out, dim=1)
+        # TODO：疑问1：为什么只有一个mlp
+        # 猜想：out聚合起来变成ho，相当于多个mlp也聚合成一个mlp，相当于图上画的先mlp再加变成先加再mlp
         ho = self.mlp(ho)
+        # TODO：疑问2：信息选择策略里的 W^k 参数矩阵在哪？
+        # 猜想：目前看只能是在mlp层里？还得读一下原文
         return ho  # 返回最终的输出
 
 
