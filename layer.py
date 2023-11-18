@@ -151,18 +151,24 @@ class dilated_inception(nn.Module):
     def __init__(self, cin, cout, dilation_factor=2):
         super(dilated_inception, self).__init__()
         self.tconv = nn.ModuleList()
+        # inception的卷积核，参照了自然时序周期
         self.kernel_set = [2, 3, 6, 7]
+        # 根据卷积核数量平均分配输出通道数，确保每个卷积核的输出通道数相近
         cout = int(cout / len(self.kernel_set))
+        # Inception的每个卷积部分都采用空洞卷积
         for kern in self.kernel_set:
             # 膨胀因子，用更少的层来更积极地合并整个输入的空间信息，感受域增长更快
             self.tconv.append(nn.Conv2d(cin, cout, (1, kern), dilation=(1, dilation_factor)))
 
     def forward(self, input):
         x = []
+        # Inception forward
         for i in range(len(self.kernel_set)):
             x.append(self.tconv[i](input))
+        # 对每一个卷积核输出的特征在第四维上进行统一，这个不相等是由卷积核大小不同导致的
         for i in range(len(self.kernel_set)):
-            x[i] = x[i][..., -x[-1].size(3):]
+            x[i] = x[i][..., -x[-1].size(3):]  # 统一为x[-1].size(3)，最后一个卷积核得到的特征图在第4维度上的大小，核大->特征小
+        # 拼接各卷积核计算结果
         x = torch.cat(x, dim=1)
         return x
 

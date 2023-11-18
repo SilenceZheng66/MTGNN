@@ -35,12 +35,13 @@ class gtnet(nn.Module):
             self.receptive_field = layers * (kernel_size - 1) + 1
 
         for i in range(1):
+            # TODO：看一下skip 和 rf size的关系
             if dilation_exponential > 1:
                 rf_size_i = int(
                     1 + i * (kernel_size - 1) * (dilation_exponential ** layers - 1) / (dilation_exponential - 1))
             else:
                 rf_size_i = i * layers * (kernel_size - 1) + 1
-            new_dilation = 1
+            new_dilation = 1  # 空洞卷积膨胀因子
             for j in range(1, layers + 1):
                 if dilation_exponential > 1:
                     rf_size_j = int(
@@ -48,7 +49,7 @@ class gtnet(nn.Module):
                 else:
                     rf_size_j = rf_size_i + j * (kernel_size - 1)
 
-                # TODO：这俩怎么一样？👇
+                # filter和gate的输出会进行对应相乘
                 self.filter_convs.append(
                     dilated_inception(residual_channels, conv_channels, dilation_factor=new_dilation))
                 self.gate_convs.append(
@@ -105,8 +106,8 @@ class gtnet(nn.Module):
         self.idx = torch.arange(self.num_nodes).to(device)
 
     def forward(self, input, idx=None):
-        # input是 32，1，137，187
-        # 对应 ？
+        # input是 32，16，137，187
+        # 对应 batch，？，node_dim，seq_len
         seq_len = input.size(3)
         assert seq_len == self.seq_length, 'input sequence length not equal to preset sequence length'
 
@@ -132,7 +133,7 @@ class gtnet(nn.Module):
             filter = torch.tanh(filter)
             gate = self.gate_convs[i](x)
             gate = torch.sigmoid(gate)
-            x = filter * gate
+            x = filter * gate  # TC模块，过滤器和gate的结果叠加
             x = F.dropout(x, self.dropout, training=self.training)
             s = x
             s = self.skip_convs[i](s)
