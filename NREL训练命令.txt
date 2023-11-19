@@ -1,0 +1,22 @@
+python train_single_step.py --save ./model-NREL-3.pt --data ./data/NREL_FARM_A_DATASET_30_WINDSPEED10.txt --num_nodes 667 --batch_size 16 --epochs 30 --horizon 3
+
+#sampling
+python train_single_step.py --num_split 3 --save ./model-NREL-sampling-3.pt --data ./data/NREL_FARM_A_DATASET_30_WINDSPEED10.txt --num_nodes 667 --batch_size 16 --epochs 30 --horizon 3
+
+
+231119实验记录：
+参数：python train_single_step.py --save ./model-NREL-3.pt --data ./data/NREL_FARM_A_DATASET_30_WINDSPEED10.txt --num_nodes 667 --batch_size 16 --epochs 30 --horizon 3
+
+10 runs average
+
+valid   rse     rae     corr
+mean    0.3424  0.2692  0.9089
+std     0.0011  0.0012  0.0006
+
+test    rse     rae     corr
+mean    0.2734  0.2227  0.9588
+std     0.0017  0.0033  0.0005
+
+实验记录：
+参数：python train_single_step.py --num_split 3 --save ./model-NREL-sampling-3.pt --data ./data/NREL_FARM_A_DATASET_30_WINDSPEED10.txt --num_nodes 667 --batch_size 64 --epochs 30 --horizon 3
+
