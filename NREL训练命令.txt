@@ -17,6 +17,15 @@ test    rse     rae     corr
 mean    0.2734  0.2227  0.9588
 std     0.0017  0.0033  0.0005
 
-实验记录：
+231120实验记录：
 参数：python train_single_step.py --num_split 3 --save ./model-NREL-sampling-3.pt --data ./data/NREL_FARM_A_DATASET_30_WINDSPEED10.txt --num_nodes 667 --batch_size 64 --epochs 30 --horizon 3
 
+10 runs average
+
+valid   rse     rae     corr  
+mean    0.3424  0.2702  0.9088
+std     0.0025  0.0039  0.0014
+
+test    rse     rae     corr  
+mean    0.2748  0.2244  0.9583
+std     0.0031  0.0041  0.0008
