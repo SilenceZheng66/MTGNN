@@ -107,7 +107,7 @@ class gtnet(nn.Module):
 
     def forward(self, input, idx=None):
         # input是 32，16，137，187
-        # 对应 batch，？，node_dim，seq_len
+        # 对应 batch，？，node_dim，seq_len（特征维度）
         seq_len = input.size(3)
         assert seq_len == self.seq_length, 'input sequence length not equal to preset sequence length'
 
