@@ -29,3 +29,29 @@ std     0.0025  0.0039  0.0014
 test    rse     rae     corr  
 mean    0.2748  0.2244  0.9583
 std     0.0031  0.0041  0.0008
+
+231121实验记录：
+命令：python train_single_step.py --num_split 3 --save ./model-NREL-sampling-3-dim-80.pt --data ./data/NREL_FARM_A_DATASET_30_WINDSPEED10.txt --num_nodes 667 --batch_size 64 --epochs 15 --horizon 3 --node_dim 80
+
+10 runs average
+
+valid   rse     rae     corr
+mean    0.3443  0.2707  0.9083
+std     0.0021  0.0022  0.0013
+
+test    rse     rae     corr
+mean    0.2762  0.2255  0.9582
+std     0.0034  0.0056  0.0005
+
+231122实验记录：
+命令：python train_single_step.py --num_split 3 --save ./model-NREL-sampling-3-dim-160-h1.pt --data ./data/NREL_FARM_A_DATASET_30_WINDSPEED10.txt --num_nodes 667 --batch_size 64 --epochs 15 --horizon 1 --node_dim 160
+
+10 runs average
+
+valid   rse     rae     corr
+mean    0.2316  0.1680  0.9594
+std     0.0011  0.0017  0.0003
+
+test    rse     rae     corr
+mean    0.1780  0.1329  0.9829
+std     0.0016  0.0037  0.0002
